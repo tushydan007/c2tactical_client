@@ -1,5 +1,3 @@
-// src/App.tsx
-
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { Provider } from "react-redux";
 import { store } from "./store";
