@@ -16,7 +16,7 @@ class ApiClient {
 
   constructor(baseUrl: string) {
     this.baseUrl = baseUrl;
-    this.authToken = localStorage.getItem("auth_token");
+    this.authToken = localStorage.getItem("accessToken");
   }
 
   private getHeaders(): HeadersInit {
@@ -79,14 +79,14 @@ class ApiClient {
       });
     }
 
-    const endpoint = `/satellite-images/${
+    const endpoint = `/satellite/images/${
       queryParams.toString() ? `?${queryParams}` : ""
     }`;
     return this.request<ApiResponse<SatelliteImage>>(endpoint);
   }
 
   async getSatelliteImage(id: number): Promise<SatelliteImage> {
-    return this.request<SatelliteImage>(`/satellite-images/${id}/`);
+    return this.request<SatelliteImage>(`/satellite/images/${id}/`);
   }
 
   async triggerAnalysis(
@@ -98,7 +98,7 @@ class ApiClient {
     task_id: string;
     status: string;
   }> {
-    return this.request(`/satellite-images/${imageId}/analyze/`, {
+    return this.request(`/satellite/images/${imageId}/analyze/`, {
       method: "POST",
       body: JSON.stringify({ analysis_type: analysisType }),
     });
@@ -106,7 +106,7 @@ class ApiClient {
 
   async getImageAnalyses(imageId: number): Promise<AnalysisResult[]> {
     return this.request<AnalysisResult[]>(
-      `/satellite-images/${imageId}/analyses/`
+      `/satellite/images/${imageId}/analyses/`
     );
   }
 
@@ -125,14 +125,14 @@ class ApiClient {
       });
     }
 
-    const endpoint = `/analyses/${
+    const endpoint = `/satellite/analyses/${
       queryParams.toString() ? `?${queryParams}` : ""
     }`;
     return this.request<ApiResponse<AnalysisResult>>(endpoint);
   }
 
   async getAnalysis(id: number): Promise<AnalysisResult> {
-    return this.request<AnalysisResult>(`/analyses/${id}/`);
+    return this.request<AnalysisResult>(`/satellite/analyses/${id}/`);
   }
 
   async checkAnalysisStatus(id: number): Promise<{
@@ -142,7 +142,7 @@ class ApiClient {
     processing_time: number | null;
     completed_at: string | null;
   }> {
-    return this.request(`/analyses/${id}/status_check/`);
+    return this.request(`/satellite/analyses/${id}/status_check/`);
   }
 
   // Threat Detections
@@ -164,18 +164,18 @@ class ApiClient {
       });
     }
 
-    const endpoint = `/threat-detections/${
+    const endpoint = `/satellite/threats/${
       queryParams.toString() ? `?${queryParams}` : ""
     }`;
     return this.request<ApiResponse<ThreatDetection>>(endpoint);
   }
 
   async getThreatDetection(id: number): Promise<ThreatDetection> {
-    return this.request<ThreatDetection>(`/threat-detections/${id}/`);
+    return this.request<ThreatDetection>(`/satellite/threats/${id}/`);
   }
 
   async verifyThreat(id: number): Promise<ThreatDetection> {
-    return this.request<ThreatDetection>(`/threat-detections/${id}/verify/`, {
+    return this.request<ThreatDetection>(`/satellite/threats/${id}/verify/`, {
       method: "POST",
     });
   }
@@ -185,7 +185,7 @@ class ApiClient {
     notes?: string
   ): Promise<ThreatDetection> {
     return this.request<ThreatDetection>(
-      `/threat-detections/${id}/acknowledge/`,
+      `/satellite/threats/${id}/acknowledge/`,
       {
         method: "POST",
         body: JSON.stringify({ notes: notes || "" }),
@@ -194,18 +194,18 @@ class ApiClient {
   }
 
   async getThreatSummary(): Promise<ThreatSummary> {
-    return this.request<ThreatSummary>("/threat-detections/summary/");
+    return this.request<ThreatSummary>("/satellite/threats/summary/");
   }
 
   // Authentication
   setAuthToken(token: string): void {
     this.authToken = token;
-    localStorage.setItem("auth_token", token);
+    localStorage.setItem("accessToken", token);
   }
 
   clearAuthToken(): void {
     this.authToken = null;
-    localStorage.removeItem("auth_token");
+    localStorage.removeItem("accessToken");
   }
 }
 

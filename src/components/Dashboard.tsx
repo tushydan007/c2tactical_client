@@ -103,19 +103,28 @@ const useApi = () => {
       if (cached) {
         const { data, timestamp } = JSON.parse(cached);
         if (Date.now() - timestamp < cacheTime) {
+          console.log(`[API Cache Hit] ${url}`, data);
           return data as T;
         }
       }
 
+      console.log(`[API Request] ${url}`);
       const response = await fetch(`${API_BASE_URL}${url}`, {
         headers: {
-          Authorization: `Bearer ${localStorage.getItem("auth_token") || ""}`,
+          Authorization: `Bearer ${localStorage.getItem("accessToken") || ""}`,
         },
       });
 
-      if (!response.ok) throw new Error("Network response was not ok");
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error(`[API Error] ${url}: ${response.status}`, errorText);
+        throw new Error(
+          `Network response was not ok: ${response.status} ${errorText}`
+        );
+      }
 
       const data = await response.json();
+      console.log(`[API Success] ${url}`, data);
       sessionStorage.setItem(
         cacheKey,
         JSON.stringify({ data, timestamp: Date.now() })
@@ -397,12 +406,25 @@ const MilitaryDashboard: React.FC = () => {
   // Fetch satellite images
   const fetchSatelliteImages = useCallback(async () => {
     try {
-      const data = await fetchWithCache<SatelliteImage[]>(
-        "/satellite-images/",
-        60000
-      );
+      const data = await fetchWithCache<
+        { results: SatelliteImage[] } | SatelliteImage[]
+      >("/satellite/images/", 60000);
+      const images = Array.isArray(data) ? data : data.results || [];
+
+      // DEBUG: Log the raw API response and processed images
+      console.log("[DEBUG] Raw satellite images data:", data);
+      console.log("[DEBUG] Processed images:", images);
+      if (images.length > 0) {
+        console.log("[DEBUG] First image details:", {
+          id: images[0].id,
+          name: images[0].name,
+          image_url: images[0].image_url,
+          bounds: images[0].bounds,
+        });
+      }
+
       setSatelliteImages(
-        data.map((img) => ({ ...img, visible: true, opacity: 0.8 }))
+        images.map((img) => ({ ...img, visible: true, opacity: 0.8 }))
       );
     } catch (error) {
       console.error("Error fetching satellite images:", error);
@@ -412,11 +434,11 @@ const MilitaryDashboard: React.FC = () => {
   // Fetch threat detections
   const fetchThreats = useCallback(async () => {
     try {
-      const data = await fetchWithCache<ThreatDetection[]>(
-        "/threat-detections/",
-        30000
-      );
-      setThreats(data);
+      const data = await fetchWithCache<
+        { results: ThreatDetection[] } | ThreatDetection[]
+      >("/satellite/threats/", 30000);
+      const threats = Array.isArray(data) ? data : data.results || [];
+      setThreats(threats);
     } catch (error) {
       console.error("Error fetching threats:", error);
     }
@@ -425,8 +447,11 @@ const MilitaryDashboard: React.FC = () => {
   // Fetch analysis results
   const fetchAnalyses = useCallback(async () => {
     try {
-      const data = await fetchWithCache<AnalysisResult[]>("/analyses/", 60000);
-      setAnalyses(data);
+      const data = await fetchWithCache<
+        { results: AnalysisResult[] } | AnalysisResult[]
+      >("/satellite/analyses/", 60000);
+      const analyses = Array.isArray(data) ? data : data.results || [];
+      setAnalyses(analyses);
     } catch (error) {
       console.error("Error fetching analyses:", error);
     }
@@ -488,10 +513,12 @@ const MilitaryDashboard: React.FC = () => {
       formData.append("name", file.name);
 
       try {
-        const response = await fetch(`${API_BASE_URL}/satellite-images/`, {
+        const response = await fetch(`${API_BASE_URL}/satellite/images/`, {
           method: "POST",
           headers: {
-            Authorization: `Bearer ${localStorage.getItem("auth_token") || ""}`,
+            Authorization: `Bearer ${
+              localStorage.getItem("accessToken") || ""
+            }`,
           },
           body: formData,
         });
@@ -512,14 +539,20 @@ const MilitaryDashboard: React.FC = () => {
   );
 
   const handleDownloadReport = useCallback(() => {
+    // Ensure threats is an array
+    const threatsArray = Array.isArray(threats) ? threats : [];
+    const imagesArray = Array.isArray(satelliteImages) ? satelliteImages : [];
+    const analysesArray = Array.isArray(analyses) ? analyses : [];
+
     const reportData = {
       generated_at: new Date().toISOString(),
-      total_images: satelliteImages.length,
-      total_threats: threats.length,
-      critical_threats: threats.filter((t) => t.severity === "critical").length,
-      high_threats: threats.filter((t) => t.severity === "high").length,
-      analyses: analyses.length,
-      threats_by_type: threats.reduce((acc, t) => {
+      total_images: imagesArray.length,
+      total_threats: threatsArray.length,
+      critical_threats: threatsArray.filter((t) => t.severity === "critical")
+        .length,
+      high_threats: threatsArray.filter((t) => t.severity === "high").length,
+      analyses: analysesArray.length,
+      threats_by_type: threatsArray.reduce((acc, t) => {
         acc[t.threat_type] = (acc[t.threat_type] || 0) + 1;
         return acc;
       }, {} as Record<string, number>),
@@ -540,15 +573,15 @@ const MilitaryDashboard: React.FC = () => {
     URL.revokeObjectURL(url);
   }, [satelliteImages, threats, analyses]);
 
-  const criticalThreatsCount = useMemo(
-    () => threats.filter((t) => t.severity === "critical").length,
-    [threats]
-  );
+  const criticalThreatsCount = useMemo(() => {
+    if (!Array.isArray(threats)) return 0;
+    return threats.filter((t) => t.severity === "critical").length;
+  }, [threats]);
 
-  const visibleImages = useMemo(
-    () => satelliteImages.filter((img) => img.visible),
-    [satelliteImages]
-  );
+  const visibleImages = useMemo(() => {
+    if (!Array.isArray(satelliteImages)) return [];
+    return satelliteImages.filter((img) => img.visible);
+  }, [satelliteImages]);
 
   return (
     <div className="h-screen bg-gray-900 flex flex-col overflow-hidden">
@@ -795,45 +828,77 @@ const MilitaryDashboard: React.FC = () => {
                 url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
                 attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
               />
-              {visibleImages.map((img) => (
-                <ImageOverlay
-                  key={img.id}
-                  url={img.image_url}
-                  bounds={img.bounds}
-                  opacity={img.opacity}
-                />
-              ))}
-              {threats.map((threat) => (
-                <Marker
-                  key={threat.id}
-                  position={threat.location}
-                  eventHandlers={{
-                    click: () => handleThreatClick(threat),
-                  }}
-                >
-                  <Popup>
-                    <div className="p-2">
-                      <h4 className="font-bold text-sm mb-1">
-                        {threat.threat_type}
-                      </h4>
-                      <p className="text-xs text-gray-600 mb-2">
-                        {threat.description}
-                      </p>
-                      <div className="text-xs">
-                        <div>
-                          Severity:{" "}
-                          <span className="font-semibold">
-                            {threat.severity}
-                          </span>
-                        </div>
-                        <div>
-                          Confidence: {Math.round(threat.confidence * 100)}%
+              {visibleImages.map((img) => {
+                const logData = {
+                  id: img.id,
+                  name: img.name,
+                  image_url: img.image_url,
+                  image_url_exists: !!img.image_url,
+                  image_url_length: img.image_url?.length,
+                  bounds: img.bounds,
+                  bounds_exists: !!img.bounds,
+                  opacity: img.opacity,
+                  visible: img.visible,
+                };
+                console.log("[DEBUG] Rendering ImageOverlay:", logData);
+                console.log("[DEBUG] Image URL value:", img.image_url);
+                console.log("[DEBUG] Bounds value:", img.bounds);
+
+                if (!img.image_url) {
+                  console.warn(
+                    "[DEBUG] WARNING: image_url is missing or empty!"
+                  );
+                }
+                if (!img.bounds) {
+                  console.warn("[DEBUG] WARNING: bounds is missing or empty!");
+                }
+
+                return (
+                  <ImageOverlay
+                    key={img.id}
+                    url={img.image_url || ""}
+                    bounds={
+                      img.bounds || [
+                        [0, 0],
+                        [1, 1],
+                      ]
+                    }
+                    opacity={img.opacity}
+                  />
+                );
+              })}
+              {Array.isArray(threats) &&
+                threats.map((threat) => (
+                  <Marker
+                    key={threat.id}
+                    position={threat.location}
+                    eventHandlers={{
+                      click: () => handleThreatClick(threat),
+                    }}
+                  >
+                    <Popup>
+                      <div className="p-2">
+                        <h4 className="font-bold text-sm mb-1">
+                          {threat.threat_type}
+                        </h4>
+                        <p className="text-xs text-gray-600 mb-2">
+                          {threat.description}
+                        </p>
+                        <div className="text-xs">
+                          <div>
+                            Severity:{" "}
+                            <span className="font-semibold">
+                              {threat.severity}
+                            </span>
+                          </div>
+                          <div>
+                            Confidence: {Math.round(threat.confidence * 100)}%
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  </Popup>
-                </Marker>
-              ))}
+                    </Popup>
+                  </Marker>
+                ))}
               {selectedThreat && (
                 <Circle
                   center={selectedThreat.location}
