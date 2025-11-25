@@ -2,7 +2,6 @@
 import {
   createSlice,
   createAsyncThunk,
-  //   PayloadAction,
   type SerializedError,
 } from "@reduxjs/toolkit";
 import axios, { AxiosError } from "axios";
@@ -94,6 +93,28 @@ const extractErrorMessage = (error: unknown): string => {
   return "An unexpected error occurred";
 };
 
+// Create axios instance with interceptor
+const createAxiosInstance = () => {
+  const instance = axios.create({
+    baseURL: API_URL,
+  });
+
+  instance.interceptors.request.use(
+    (config) => {
+      const token = localStorage.getItem("accessToken");
+      if (token) {
+        config.headers.Authorization = `Bearer ${token}`;
+      }
+      return config;
+    },
+    (error) => Promise.reject(error)
+  );
+
+  return instance;
+};
+
+const axiosInstance = createAxiosInstance();
+
 // Async thunks
 export const login = createAsyncThunk(
   "auth/login",
@@ -110,9 +131,7 @@ export const login = createAsyncThunk(
       localStorage.setItem("refreshToken", refresh);
 
       // Get user data
-      const userResponse = await axios.get(`${API_URL}/user/profile/me/`, {
-        headers: { Authorization: `Bearer ${access}` },
-      });
+      const userResponse = await axiosInstance.get(`/user/profile/me/`);
 
       return {
         accessToken: access,
@@ -148,9 +167,7 @@ export const register = createAsyncThunk(
       localStorage.setItem("refreshToken", refresh);
 
       // Get user data
-      const userResponse = await axios.get(`${API_URL}/user/profile/me/`, {
-        headers: { Authorization: `Bearer ${access}` },
-      });
+      const userResponse = await axiosInstance.get(`/user/profile/me/`);
 
       return {
         accessToken: access,
@@ -172,12 +189,12 @@ export const fetchCurrentUser = createAsyncThunk(
         return rejectWithValue("No access token found");
       }
 
-      const response = await axios.get(`${API_URL}/user/profile/me/`, {
-        headers: { Authorization: `Bearer ${accessToken}` },
-      });
-
+      const response = await axiosInstance.get(`/user/profile/me/`);
       return response.data as User;
     } catch (error) {
+      // Clear tokens if fetch fails
+      localStorage.removeItem("accessToken");
+      localStorage.removeItem("refreshToken");
       return rejectWithValue(extractErrorMessage(error));
     }
   }
@@ -187,15 +204,10 @@ export const updateProfile = createAsyncThunk(
   "auth/updateProfile",
   async (data: Partial<User>, { rejectWithValue }) => {
     try {
-      const accessToken = localStorage.getItem("accessToken");
-      const response = await axios.patch(
-        `${API_URL}/user/profile/update_profile/`,
-        data,
-        {
-          headers: { Authorization: `Bearer ${accessToken}` },
-        }
+      const response = await axiosInstance.patch(
+        `/user/profile/update_profile/`,
+        data
       );
-
       return response.data as User;
     } catch (error) {
       return rejectWithValue(extractErrorMessage(error));
@@ -207,16 +219,14 @@ export const uploadAvatar = createAsyncThunk(
   "auth/uploadAvatar",
   async (file: File, { rejectWithValue }) => {
     try {
-      const accessToken = localStorage.getItem("accessToken");
       const formData = new FormData();
       formData.append("avatar", file);
 
-      const response = await axios.post(
-        `${API_URL}/user/profile/upload_avatar/`,
+      const response = await axiosInstance.post(
+        `/user/profile/upload_avatar/`,
         formData,
         {
           headers: {
-            Authorization: `Bearer ${accessToken}`,
             "Content-Type": "multipart/form-data",
           },
         }
@@ -248,7 +258,7 @@ export const refreshAccessToken = createAsyncThunk(
       return access;
     } catch (error) {
       const err = error as SerializedError;
-      console.log(err);
+      console.error("Token refresh failed:", err);
       // Clear tokens on refresh failure
       localStorage.removeItem("accessToken");
       localStorage.removeItem("refreshToken");
@@ -292,6 +302,7 @@ const authSlice = createSlice({
       })
       .addCase(login.rejected, (state, action) => {
         state.isLoading = false;
+        state.isAuthenticated = false;
         state.error = action.payload as string;
       });
 
@@ -311,6 +322,7 @@ const authSlice = createSlice({
       })
       .addCase(register.rejected, (state, action) => {
         state.isLoading = false;
+        state.isAuthenticated = false;
         state.error = action.payload as string;
       });
 
@@ -323,11 +335,15 @@ const authSlice = createSlice({
         state.user = action.payload;
         state.isAuthenticated = true;
         state.isLoading = false;
+        state.error = null;
       })
-      .addCase(fetchCurrentUser.rejected, (state) => {
+      .addCase(fetchCurrentUser.rejected, (state, action) => {
         state.isAuthenticated = false;
         state.user = null;
+        state.accessToken = null;
+        state.refreshToken = null;
         state.isLoading = false;
+        state.error = action.payload as string;
       });
 
     // Update profile
