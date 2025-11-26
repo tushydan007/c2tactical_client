@@ -36,6 +36,7 @@ import {
 } from "lucide-react";
 import "leaflet/dist/leaflet.css";
 import L from "leaflet";
+import type { SatelliteImage, ThreatDetection, AnalysisResult } from "../types";
 
 // Fix Leaflet default icon issue
 delete (L.Icon.Default.prototype as unknown as Record<string, unknown>)
@@ -49,41 +50,7 @@ L.Icon.Default.mergeOptions({
     "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png",
 });
 
-// Types
-interface SatelliteImage {
-  id: number;
-  name: string;
-  upload_date: string;
-  bounds: [[number, number], [number, number]];
-  image_url: string;
-  thumbnail_url: string;
-  opacity: number;
-  visible: boolean;
-}
-
-interface ThreatDetection {
-  id: number;
-  image_id: number;
-  threat_type: string;
-  confidence: number;
-  location: [number, number];
-  detected_at: string;
-  description: string;
-  severity: "low" | "medium" | "high" | "critical";
-}
-
-interface AnalysisResult {
-  id: number;
-  image_id: number;
-  analysis_type: string;
-  status: "pending" | "processing" | "completed" | "failed";
-  created_at: string;
-  completed_at: string | null;
-  summary: string;
-  threat_count: number;
-  detections: ThreatDetection[];
-}
-
+// Local types (component-specific)
 interface MapBounds {
   center: [number, number];
   zoom: number;
@@ -191,57 +158,92 @@ const LayerControl: React.FC<{
   images: SatelliteImage[];
   onToggleVisibility: (id: number) => void;
   onOpacityChange: (id: number, opacity: number) => void;
-}> = ({ images, onToggleVisibility, onOpacityChange }) => (
-  <div className="space-y-3">
-    <h3 className="text-sm font-semibold text-gray-400 uppercase tracking-wider mb-4">
-      Satellite Layers
-    </h3>
-    {images.length === 0 ? (
-      <p className="text-gray-500 text-sm">No satellite imagery available</p>
-    ) : (
-      images.map((img) => (
-        <div
-          key={img.id}
-          className="bg-gray-800 rounded-lg p-3 border border-gray-700 hover:border-gray-600 transition-colors"
-        >
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-sm font-medium text-white truncate flex-1">
-              {img.name}
-            </span>
-            <button
-              onClick={() => onToggleVisibility(img.id)}
-              className={`p-1.5 rounded transition-colors ${
-                img.visible
-                  ? "bg-green-600 text-white"
-                  : "bg-gray-700 text-gray-400"
-              }`}
-            >
-              {img.visible ? (
-                <Eye className="w-4 h-4" />
-              ) : (
-                <EyeOff className="w-4 h-4" />
-              )}
-            </button>
+  basemaps: {
+    [key: string]: { label: string; url: string; attribution: string };
+  };
+  currentBasemap: string;
+  onBasemapChange: (basemap: string) => void;
+}> = ({
+  images,
+  onToggleVisibility,
+  onOpacityChange,
+  basemaps,
+  currentBasemap,
+  onBasemapChange,
+}) => (
+  <div className="space-y-4">
+    <div>
+      <h3 className="text-sm font-semibold text-gray-400 uppercase tracking-wider mb-3">
+        Base Map
+      </h3>
+      <div className="space-y-2">
+        {Object.entries(basemaps).map(([key, basemap]) => (
+          <button
+            key={key}
+            onClick={() => onBasemapChange(key)}
+            className={`w-full px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+              currentBasemap === key
+                ? "bg-red-600 text-white"
+                : "bg-gray-800 text-gray-300 hover:bg-gray-700"
+            }`}
+          >
+            {basemap.label}
+          </button>
+        ))}
+      </div>
+    </div>
+
+    <div>
+      <h3 className="text-sm font-semibold text-gray-400 uppercase tracking-wider mb-4">
+        Satellite Layers
+      </h3>
+      {images.length === 0 ? (
+        <p className="text-gray-500 text-sm">No satellite imagery available</p>
+      ) : (
+        images.map((img) => (
+          <div
+            key={img.id}
+            className="bg-gray-800 rounded-lg p-3 border border-gray-700 hover:border-gray-600 transition-colors"
+          >
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-sm font-medium text-white truncate flex-1">
+                {img.name}
+              </span>
+              <button
+                onClick={() => onToggleVisibility(img.id)}
+                className={`p-1.5 rounded transition-colors ${
+                  img.visible
+                    ? "bg-green-600 text-white"
+                    : "bg-gray-700 text-gray-400"
+                }`}
+              >
+                {img.visible ? (
+                  <Eye className="w-4 h-4" />
+                ) : (
+                  <EyeOff className="w-4 h-4" />
+                )}
+              </button>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-gray-400">Opacity:</span>
+              <input
+                type="range"
+                min="0"
+                max="100"
+                value={img.opacity * 100}
+                onChange={(e) =>
+                  onOpacityChange(img.id, parseInt(e.target.value) / 100)
+                }
+                className="flex-1 h-1 bg-gray-700 rounded-lg appearance-none cursor-pointer accent-red-600"
+              />
+              <span className="text-xs text-gray-400 w-10 text-right">
+                {Math.round(img.opacity * 100)}%
+              </span>
+            </div>
           </div>
-          <div className="flex items-center gap-2">
-            <span className="text-xs text-gray-400">Opacity:</span>
-            <input
-              type="range"
-              min="0"
-              max="100"
-              value={img.opacity * 100}
-              onChange={(e) =>
-                onOpacityChange(img.id, parseInt(e.target.value) / 100)
-              }
-              className="flex-1 h-1 bg-gray-700 rounded-lg appearance-none cursor-pointer accent-red-600"
-            />
-            <span className="text-xs text-gray-400 w-10 text-right">
-              {Math.round(img.opacity * 100)}%
-            </span>
-          </div>
-        </div>
-      ))
-    )}
+        ))
+      )}
+    </div>
   </div>
 );
 
@@ -399,9 +401,33 @@ const MilitaryDashboard: React.FC = () => {
   const [showUploadModal, setShowUploadModal] = useState(false);
   // FIXED: Add counter to trigger map resize
   const [resizeTrigger, setResizeTrigger] = useState(0);
+  const [basemap, setBasemap] = useState<string>("osm");
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const sidebarToggleTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(
+    null
+  );
 
   const { fetchWithCache } = useApi();
+
+  // Basemap configurations
+  const basemaps = {
+    osm: {
+      label: "OpenStreetMap",
+      url: "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
+      attribution:
+        '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+    },
+    satellite: {
+      label: "Satellite",
+      url: "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
+      attribution: '&copy; <a href="https://www.esri.com/">Esri</a>',
+    },
+    terrain: {
+      label: "Terrain",
+      url: "https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png",
+      attribution: '&copy; <a href="https://opentopomap.org/">OpenTopoMap</a>',
+    },
+  };
 
   // Fetch satellite images
   const fetchSatelliteImages = useCallback(async () => {
@@ -435,9 +461,43 @@ const MilitaryDashboard: React.FC = () => {
   const fetchThreats = useCallback(async () => {
     try {
       const data = await fetchWithCache<
-        { results: ThreatDetection[] } | ThreatDetection[]
+        | {
+            results:
+              | ThreatDetection[]
+              | {
+                  type: string;
+                  features: { id: number; properties: ThreatDetection }[];
+                };
+          }
+        | ThreatDetection[]
       >("/satellite/threats/", 30000);
-      const threats = Array.isArray(data) ? data : data.results || [];
+
+      let threats: ThreatDetection[] = [];
+
+      if (Array.isArray(data)) {
+        threats = data;
+      } else if (data.results) {
+        // Check if results is GeoJSON FeatureCollection
+        if (
+          typeof data.results === "object" &&
+          "type" in data.results &&
+          "features" in data.results
+        ) {
+          const geoResults = data.results as {
+            type: string;
+            features: { id: number; properties: ThreatDetection }[];
+          };
+          if (geoResults.type === "FeatureCollection") {
+            threats = geoResults.features.map((feature) => ({
+              ...feature.properties,
+              id: feature.id,
+            }));
+          }
+        } else if (Array.isArray(data.results)) {
+          threats = data.results;
+        }
+      }
+
       setThreats(threats);
     } catch (error) {
       console.error("Error fetching threats:", error);
@@ -479,9 +539,43 @@ const MilitaryDashboard: React.FC = () => {
     return () => clearInterval(interval);
   }, [fetchThreats]);
 
+  // Update map bounds when satellite images load
+  useEffect(() => {
+    if (satelliteImages.length > 0 && satelliteImages[0].bounds) {
+      const firstImageBounds = satelliteImages[0].bounds;
+      // Center map on first image with appropriate zoom
+      const centerLat = (firstImageBounds[0][0] + firstImageBounds[1][0]) / 2;
+      const centerLon = (firstImageBounds[0][1] + firstImageBounds[1][1]) / 2;
+
+      // Use timeout to avoid cascading render warning
+      const timeoutId = setTimeout(() => {
+        setMapBounds({
+          center: [centerLat, centerLon],
+          zoom: 10,
+        });
+      }, 100);
+
+      return () => clearTimeout(timeoutId);
+    }
+  }, [satelliteImages]);
+
   // FIXED: Trigger map resize when sidebar toggles
   useEffect(() => {
-    setResizeTrigger((prev) => prev + 1);
+    // Clear any pending timeout
+    if (sidebarToggleTimeoutRef.current) {
+      clearTimeout(sidebarToggleTimeoutRef.current);
+    }
+
+    // Set a small delay to ensure DOM has updated before triggering resize
+    sidebarToggleTimeoutRef.current = setTimeout(() => {
+      setResizeTrigger((prev) => prev + 1);
+    }, 50);
+
+    return () => {
+      if (sidebarToggleTimeoutRef.current) {
+        clearTimeout(sidebarToggleTimeoutRef.current);
+      }
+    };
   }, [sidebarOpen, fullscreen]);
 
   const handleToggleVisibility = useCallback((id: number) => {
@@ -500,7 +594,7 @@ const MilitaryDashboard: React.FC = () => {
 
   const handleThreatClick = useCallback((threat: ThreatDetection) => {
     setSelectedThreat(threat);
-    setMapBounds({ center: threat.location, zoom: 14 });
+    setMapBounds({ center: threat.location_coords, zoom: 14 });
   }, []);
 
   const handleFileUpload = useCallback(
@@ -696,6 +790,9 @@ const MilitaryDashboard: React.FC = () => {
                   images={satelliteImages}
                   onToggleVisibility={handleToggleVisibility}
                   onOpacityChange={handleOpacityChange}
+                  basemaps={basemaps}
+                  currentBasemap={basemap}
+                  onBasemapChange={setBasemap}
                 />
               )}
               {activePanel === "threats" && (
@@ -798,8 +895,8 @@ const MilitaryDashboard: React.FC = () => {
                 <div>
                   <span className="text-gray-400">Location: </span>
                   <span className="text-white text-xs">
-                    {selectedThreat.location[0].toFixed(4)},{" "}
-                    {selectedThreat.location[1].toFixed(4)}
+                    {selectedThreat.location_coords[0].toFixed(4)},{" "}
+                    {selectedThreat.location_coords[1].toFixed(4)}
                   </span>
                 </div>
                 <p className="text-gray-300 text-xs mt-2 pt-2 border-t border-gray-700">
@@ -825,28 +922,33 @@ const MilitaryDashboard: React.FC = () => {
             >
               <MapController bounds={mapBounds} triggerResize={resizeTrigger} />
               <TileLayer
-                url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-                attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+                key={basemap}
+                url={basemaps[basemap as keyof typeof basemaps].url}
+                attribution={
+                  basemaps[basemap as keyof typeof basemaps].attribution
+                }
               />
               {visibleImages.map((img) => {
                 const logData = {
                   id: img.id,
                   name: img.name,
-                  image_url: img.image_url,
-                  image_url_exists: !!img.image_url,
-                  image_url_length: img.image_url?.length,
+                  map_overlay_url: img.map_overlay_url,
+                  map_overlay_url_exists: !!img.map_overlay_url,
                   bounds: img.bounds,
                   bounds_exists: !!img.bounds,
                   opacity: img.opacity,
                   visible: img.visible,
                 };
                 console.log("[DEBUG] Rendering ImageOverlay:", logData);
-                console.log("[DEBUG] Image URL value:", img.image_url);
+                console.log(
+                  "[DEBUG] Map overlay URL value:",
+                  img.map_overlay_url
+                );
                 console.log("[DEBUG] Bounds value:", img.bounds);
 
-                if (!img.image_url) {
+                if (!img.map_overlay_url) {
                   console.warn(
-                    "[DEBUG] WARNING: image_url is missing or empty!"
+                    "[DEBUG] WARNING: map_overlay_url is missing or empty!"
                   );
                 }
                 if (!img.bounds) {
@@ -856,7 +958,7 @@ const MilitaryDashboard: React.FC = () => {
                 return (
                   <ImageOverlay
                     key={img.id}
-                    url={img.image_url || ""}
+                    url={img.map_overlay_url || ""}
                     bounds={
                       img.bounds || [
                         [0, 0],
@@ -871,7 +973,7 @@ const MilitaryDashboard: React.FC = () => {
                 threats.map((threat) => (
                   <Marker
                     key={threat.id}
-                    position={threat.location}
+                    position={threat.location_coords}
                     eventHandlers={{
                       click: () => handleThreatClick(threat),
                     }}
@@ -901,7 +1003,7 @@ const MilitaryDashboard: React.FC = () => {
                 ))}
               {selectedThreat && (
                 <Circle
-                  center={selectedThreat.location}
+                  center={selectedThreat.location_coords}
                   radius={500}
                   pathOptions={{
                     color:

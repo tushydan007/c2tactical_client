@@ -6,6 +6,7 @@ export interface SatelliteImage {
   bounds: [[number, number], [number, number]];
   image_url: string;
   thumbnail_url: string;
+  map_overlay_url: string;
   opacity: number;
   visible: boolean;
   status: "uploaded" | "processing" | "optimized" | "failed";
@@ -25,6 +26,7 @@ export interface ThreatDetection {
   severity: "low" | "medium" | "high" | "critical";
   severity_display: string;
   location_coords: [number, number];
+  location?: [number, number]; // Alias for compatibility with Dashboard
   confidence: number;
   description: string;
   detected_at: string;
