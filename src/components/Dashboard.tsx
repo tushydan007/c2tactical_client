@@ -5,6 +5,7 @@ import React, {
   useMemo,
   useRef,
 } from "react";
+import toast from "react-hot-toast";
 import {
   MapContainer,
   TileLayer,
@@ -685,13 +686,20 @@ const MilitaryDashboard: React.FC = () => {
           await new Promise((resolve) => setTimeout(resolve, 1000));
           await fetchThreats();
 
-          alert("Satellite image uploaded and analysis initiated!");
+          toast.success("Satellite image uploaded and analysis initiated!", {
+            duration: 4000,
+            icon: "🛰️",
+          });
         } else {
-          alert("Failed to upload image");
+          toast.error("Failed to upload image", {
+            duration: 4000,
+          });
         }
       } catch (error) {
         console.error("Error uploading file:", error);
-        alert("Error uploading file");
+        toast.error("Error uploading file", {
+          duration: 4000,
+        });
       }
     },
     [fetchSatelliteImages, fetchThreats]
