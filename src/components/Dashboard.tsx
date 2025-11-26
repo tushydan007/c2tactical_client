@@ -398,7 +398,6 @@ const MilitaryDashboard: React.FC = () => {
   const [selectedThreat, setSelectedThreat] = useState<ThreatDetection | null>(
     null
   );
-  const [showUploadModal, setShowUploadModal] = useState(false);
   // FIXED: Add counter to trigger map resize
   const [resizeTrigger, setResizeTrigger] = useState(0);
   const [basemap, setBasemap] = useState<string>("osm");
@@ -618,9 +617,75 @@ const MilitaryDashboard: React.FC = () => {
         });
 
         if (response.ok) {
+          const uploadedImage = await response.json();
+          console.log("[DEBUG] Image uploaded successfully:", uploadedImage);
+
+          // Wait for optimization to complete (poll the image status)
+          let imageReady = false;
+          let attempts = 0;
+          const maxAttempts = 30; // Max 30 attempts = 60 seconds with 2s intervals
+
+          while (!imageReady && attempts < maxAttempts) {
+            await new Promise((resolve) => setTimeout(resolve, 2000)); // Wait 2 seconds
+
+            const checkResponse = await fetch(
+              `${API_BASE_URL}/satellite/images/${uploadedImage.id}/`,
+              {
+                headers: {
+                  Authorization: `Bearer ${
+                    localStorage.getItem("accessToken") || ""
+                  }`,
+                },
+              }
+            );
+
+            if (checkResponse.ok) {
+              const imageData = await checkResponse.json();
+              console.log(
+                `[DEBUG] Image status check (attempt ${attempts + 1}): ${
+                  imageData.status
+                }`
+              );
+
+              if (imageData.status === "optimized") {
+                imageReady = true;
+
+                // Trigger analysis
+                try {
+                  const analysisResponse = await fetch(
+                    `${API_BASE_URL}/satellite/images/${uploadedImage.id}/analyze/`,
+                    {
+                      method: "POST",
+                      headers: {
+                        "Content-Type": "application/json",
+                        Authorization: `Bearer ${
+                          localStorage.getItem("accessToken") || ""
+                        }`,
+                      },
+                      body: JSON.stringify({
+                        analysis_type: "threat_detection",
+                      }),
+                    }
+                  );
+
+                  if (analysisResponse.ok) {
+                    console.log("[DEBUG] Analysis triggered successfully");
+                  }
+                } catch (analysisError) {
+                  console.error("Error triggering analysis:", analysisError);
+                }
+              }
+            }
+
+            attempts++;
+          }
+
+          // Refresh the image list
           await fetchSatelliteImages();
-          setShowUploadModal(false);
-          alert("Satellite image uploaded successfully!");
+          await new Promise((resolve) => setTimeout(resolve, 1000));
+          await fetchThreats();
+
+          alert("Satellite image uploaded and analysis initiated!");
         } else {
           alert("Failed to upload image");
         }
@@ -629,7 +694,7 @@ const MilitaryDashboard: React.FC = () => {
         alert("Error uploading file");
       }
     },
-    [fetchSatelliteImages]
+    [fetchSatelliteImages, fetchThreats]
   );
 
   const handleDownloadReport = useCallback(() => {
@@ -680,7 +745,7 @@ const MilitaryDashboard: React.FC = () => {
   return (
     <div className="h-screen bg-gray-900 flex flex-col overflow-hidden">
       {/* Navbar */}
-      <nav className="bg-gray-950 border-b border-gray-800 px-6 py-4 flex items-center justify-between z-50 shadow-2xl">
+      <nav className="bg-gray-950 border-b border-gray-800 px-6 py-4 flex items-center justify-between z-60 shadow-2xl">
         <div className="flex items-center gap-4">
           <button
             onClick={() => setSidebarOpen(!sidebarOpen)}
@@ -721,7 +786,7 @@ const MilitaryDashboard: React.FC = () => {
             <Download className="w-5 h-5" />
           </button>
           <button
-            onClick={() => setShowUploadModal(true)}
+            onClick={() => fileInputRef.current?.click()}
             className="p-2 text-gray-300 hover:text-white hover:bg-gray-800 rounded-lg transition-colors"
             title="Upload Satellite Image"
           >
@@ -750,6 +815,16 @@ const MilitaryDashboard: React.FC = () => {
           </button>
         </div>
       </nav>
+
+      {/* Hidden file input for satellite image upload */}
+      <input
+        type="file"
+        ref={fileInputRef}
+        onChange={handleFileUpload}
+        accept=".tif,.tiff,.geotiff"
+        className="hidden"
+        aria-label="Upload satellite image"
+      />
 
       {/* Main Content */}
       <div className="flex-1 flex overflow-hidden">
@@ -1030,52 +1105,6 @@ const MilitaryDashboard: React.FC = () => {
           )}
         </main>
       </div>
-
-      {/* Upload Modal */}
-      {showUploadModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50">
-          <div className="bg-gray-900 rounded-lg p-6 max-w-md w-full mx-4 border border-gray-700">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-xl font-bold text-white flex items-center gap-2">
-                <Upload className="w-6 h-6" />
-                Upload Satellite Image
-              </h2>
-              <button
-                onClick={() => setShowUploadModal(false)}
-                className="text-gray-400 hover:text-white transition-colors"
-              >
-                <X className="w-6 h-6" />
-              </button>
-            </div>
-            <p className="text-gray-400 text-sm mb-4">
-              Upload GeoTIFF satellite imagery for analysis. Supported formats:
-              .tif, .tiff, .geotiff
-            </p>
-            <div className="space-y-4">
-              <input
-                type="file"
-                ref={fileInputRef}
-                onChange={handleFileUpload}
-                accept=".tif,.tiff,.geotiff"
-                className="hidden"
-              />
-              <button
-                onClick={() => fileInputRef.current?.click()}
-                className="w-full bg-red-600 hover:bg-red-700 text-white font-medium py-3 px-4 rounded-lg transition-colors flex items-center justify-center gap-2"
-              >
-                <Upload className="w-5 h-5" />
-                Select File
-              </button>
-              <button
-                onClick={() => setShowUploadModal(false)}
-                className="w-full bg-gray-800 hover:bg-gray-700 text-white font-medium py-3 px-4 rounded-lg transition-colors"
-              >
-                Cancel
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 };
