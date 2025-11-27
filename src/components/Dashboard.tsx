@@ -933,7 +933,7 @@ const MilitaryDashboard: React.FC = () => {
         <main className="flex-1 relative transition-all duration-300">
           {/* Selected Threat Info Panel */}
           {selectedThreat && !fullscreen && (
-            <div className="absolute top-4 right-4 bg-gray-900 border border-gray-700 rounded-lg p-4 z-10 max-w-sm shadow-2xl">
+            <div className="absolute top-4 right-4 bg-gray-900 border border-gray-700 rounded-lg p-4 z-1000 max-w-sm shadow-2xl">
               <div className="flex items-start justify-between mb-3">
                 <div className="flex items-center gap-2">
                   <MapPin className="w-5 h-5 text-red-500" />
