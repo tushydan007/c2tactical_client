@@ -62,7 +62,7 @@ const UserMenu = ({ className = "" }: UserMenuProps) => {
   };
 
   return (
-    <div className={`relative ${className}`} ref={menuRef}>
+    <div className={`relative ${className} z-1001`} ref={menuRef}>
       {/* User Avatar Button */}
       <button
         onClick={() => setIsOpen(!isOpen)}
@@ -103,7 +103,7 @@ const UserMenu = ({ className = "" }: UserMenuProps) => {
 
       {/* Dropdown Menu */}
       {isOpen && (
-        <div className="absolute right-0 mt-2 w-72 bg-gray-900 border border-gray-800 rounded-xl shadow-2xl overflow-hidden z-50 animate-in fade-in slide-in-from-top-2 duration-200">
+        <div className="absolute right-0 mt-2 w-72 bg-gray-900 border border-gray-800 rounded-xl shadow-2xl overflow-hidden z-9999 animate-in fade-in slide-in-from-top-2 duration-200">
           {/* User Info Section */}
           <div className="p-4 border-b border-gray-800 bg-linear-to-br from-gray-900 to-gray-950">
             <div className="flex items-center gap-3 mb-3">

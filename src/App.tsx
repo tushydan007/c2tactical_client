@@ -5,8 +5,10 @@ import { store } from "./store";
 import LoginPage from "./pages/Login";
 import RegisterPage from "./pages/Register";
 import DashboardPage from "./components/Dashboard";
-import ProfileSettings from "./pages/ProfileSettings";
+// import ProfileSettings from "./pages/ProfileSettings";
 import ProtectedRoute from "./components/ProtectedRoute";
+import ProfilePage from "./pages/ProfilePage";
+import SettingsPage from "./pages/SettingsPage";
 
 function App() {
   return (
@@ -29,7 +31,7 @@ function App() {
             path="/profile"
             element={
               <ProtectedRoute>
-                <ProfileSettings />
+                <ProfilePage />
               </ProtectedRoute>
             }
           />
@@ -38,7 +40,7 @@ function App() {
             path="/settings"
             element={
               <ProtectedRoute>
-                <ProfileSettings />
+                <SettingsPage />
               </ProtectedRoute>
             }
           />

@@ -38,7 +38,7 @@ import {
 import "leaflet/dist/leaflet.css";
 import L from "leaflet";
 import type { SatelliteImage, ThreatDetection, AnalysisResult } from "../types";
-import UserMenu from "./Usermenu";
+import UserMenu from "./UserMenu";
 
 // Fix Leaflet default icon issue
 delete (L.Icon.Default.prototype as unknown as Record<string, unknown>)
@@ -764,7 +764,7 @@ const MilitaryDashboard = () => {
   return (
     <div className="h-screen bg-gray-900 flex flex-col overflow-hidden">
       {/* Navbar */}
-      <nav className="bg-gray-950 border-b border-gray-800 px-6 py-4 flex items-center justify-between z-60 shadow-2xl">
+      <nav className="bg-gray-950 border-b border-gray-800 px-6 py-4 flex items-center justify-between z-1000 relative shadow-2xl">
         <div className="flex items-center gap-4">
           <button
             onClick={() => setSidebarOpen(!sidebarOpen)}
