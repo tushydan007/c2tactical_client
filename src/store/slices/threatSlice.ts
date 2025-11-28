@@ -1,4 +1,3 @@
-// src/store/slices/threatSlice.ts
 import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
 import axios, { AxiosError } from "axios";
 

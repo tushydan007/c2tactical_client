@@ -38,6 +38,7 @@ import {
 import "leaflet/dist/leaflet.css";
 import L from "leaflet";
 import type { SatelliteImage, ThreatDetection, AnalysisResult } from "../types";
+import UserMenu from "./Usermenu";
 
 // Fix Leaflet default icon issue
 delete (L.Icon.Default.prototype as unknown as Record<string, unknown>)
@@ -779,6 +780,7 @@ const MilitaryDashboard: React.FC = () => {
             </div>
           </div>
         </div>
+
         <div className="flex items-center gap-4">
           <div className="bg-gray-800 px-4 py-2 rounded-lg border border-gray-700">
             <span className="text-xs text-gray-400">Active Threats</span>
@@ -821,6 +823,11 @@ const MilitaryDashboard: React.FC = () => {
           >
             <RefreshCw className="w-5 h-5" />
           </button>
+
+          {/* Add UserMenu component */}
+          <div className="border-l border-gray-800 pl-4 ml-2">
+            <UserMenu />
+          </div>
         </div>
       </nav>
 
