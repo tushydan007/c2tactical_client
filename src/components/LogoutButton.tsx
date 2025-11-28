@@ -1,5 +1,5 @@
 // src/components/LogoutButton.tsx
-import React, { useState } from "react";
+import { useState } from "react";
 import { LogOut, AlertCircle } from "lucide-react";
 import { useLogout } from "../hooks/useLogout";
 
@@ -12,14 +12,14 @@ interface LogoutButtonProps {
   confirmLogout?: boolean;
 }
 
-const LogoutButton: React.FC<LogoutButtonProps> = ({
+const LogoutButton = ({
   variant = "default",
   size = "md",
   showIcon = true,
   showText = true,
   className = "",
   confirmLogout = false,
-}) => {
+}: LogoutButtonProps) => {
   const { handleLogout } = useLogout();
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
 

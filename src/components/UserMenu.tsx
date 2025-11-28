@@ -1,5 +1,4 @@
-// src/components/UserMenu.tsx
-import React, { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect } from "react";
 import { Link } from "react-router-dom";
 import {
   User,
@@ -16,7 +15,7 @@ interface UserMenuProps {
   className?: string;
 }
 
-const UserMenu: React.FC<UserMenuProps> = ({ className = "" }) => {
+const UserMenu = ({ className = "" }: UserMenuProps) => {
   const { user } = useAppSelector((state) => state.auth);
   const { handleLogout } = useLogout();
   const [isOpen, setIsOpen] = useState(false);

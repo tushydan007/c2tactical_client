@@ -107,9 +107,12 @@ const useApi = () => {
 };
 
 // Map Control Component - FIXED: Added map resize handler
-const MapController: React.FC<{ bounds: MapBounds; triggerResize: number }> = ({
+const MapController = ({
   bounds,
   triggerResize,
+}: {
+  bounds: MapBounds;
+  triggerResize: number;
 }) => {
   const map = useMap();
 
@@ -131,13 +134,19 @@ const MapController: React.FC<{ bounds: MapBounds; triggerResize: number }> = ({
 };
 
 // Sidebar Components
-const SidebarButton: React.FC<{
+const SidebarButton = ({
+  icon,
+  label,
+  active,
+  onClick,
+  badge,
+}: {
   icon: React.ReactNode;
   label: string;
   active: boolean;
   onClick: () => void;
   badge?: number;
-}> = ({ icon, label, active, onClick, badge }) => (
+}) => (
   <button
     onClick={onClick}
     className={`relative flex items-center gap-3 w-full px-4 py-3 rounded-lg transition-all duration-200 ${
@@ -156,7 +165,14 @@ const SidebarButton: React.FC<{
   </button>
 );
 
-const LayerControl: React.FC<{
+const LayerControl = ({
+  images,
+  onToggleVisibility,
+  onOpacityChange,
+  basemaps,
+  currentBasemap,
+  onBasemapChange,
+}: {
   images: SatelliteImage[];
   onToggleVisibility: (id: number) => void;
   onOpacityChange: (id: number, opacity: number) => void;
@@ -165,13 +181,6 @@ const LayerControl: React.FC<{
   };
   currentBasemap: string;
   onBasemapChange: (basemap: string) => void;
-}> = ({
-  images,
-  onToggleVisibility,
-  onOpacityChange,
-  basemaps,
-  currentBasemap,
-  onBasemapChange,
 }) => (
   <div className="space-y-4">
     <div>
@@ -249,10 +258,13 @@ const LayerControl: React.FC<{
   </div>
 );
 
-const ThreatList: React.FC<{
+const ThreatList = ({
+  threats,
+  onThreatClick,
+}: {
   threats: ThreatDetection[];
   onThreatClick: (threat: ThreatDetection) => void;
-}> = ({ threats, onThreatClick }) => {
+}) => {
   const getSeverityColor = (severity: string): string => {
     switch (severity) {
       case "critical":
@@ -309,9 +321,7 @@ const ThreatList: React.FC<{
   );
 };
 
-const AnalysesList: React.FC<{
-  analyses: AnalysisResult[];
-}> = ({ analyses }) => {
+const AnalysesList = ({ analyses }: { analyses: AnalysisResult[] }) => {
   const getStatusIcon = (status: string) => {
     switch (status) {
       case "completed":
@@ -383,7 +393,7 @@ const AnalysesList: React.FC<{
 };
 
 // Main Dashboard Component
-const MilitaryDashboard: React.FC = () => {
+const MilitaryDashboard = () => {
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [activePanel, setActivePanel] = useState<
     "layers" | "threats" | "analytics" | "analyses"
