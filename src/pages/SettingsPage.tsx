@@ -1,5 +1,5 @@
 // src/pages/SettingsPage.tsx
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import {
   ArrowLeft,
@@ -12,18 +12,26 @@ import {
   Moon,
   Sun,
   Monitor,
+  RefreshCw,
 } from "lucide-react";
 import { toast } from "react-hot-toast";
 import { useAppSelector } from "../store";
 import LogoutButton from "../components/LogoutButton";
+import { userStatsApi } from "../services/userStatsApi";
 
 const SettingsPage: React.FC = () => {
   const { user } = useAppSelector((state) => state.auth);
 
+  // Loading states
+  const [isLoadingPreferences, setIsLoadingPreferences] = useState(true);
+  const [isSavingNotifications, setIsSavingNotifications] = useState(false);
+  const [isSavingAppearance, setIsSavingAppearance] = useState(false);
+  const [isSavingSecurity, setIsSavingSecurity] = useState(false);
+
   // Settings state
-  const [emailNotifications, setEmailNotifications] = useState(true);
-  const [pushNotifications, setPushNotifications] = useState(true);
-  const [threatAlerts, setThreatAlerts] = useState(true);
+  const [emailNotifications, setEmailNotifications] = useState(false);
+  const [pushNotifications, setPushNotifications] = useState(false);
+  const [threatAlerts, setThreatAlerts] = useState(false);
   const [weeklyReports, setWeeklyReports] = useState(false);
   const [theme, setTheme] = useState<"light" | "dark" | "system">("dark");
   const [language, setLanguage] = useState("en");
@@ -31,16 +39,84 @@ const SettingsPage: React.FC = () => {
   const [twoFactorEnabled, setTwoFactorEnabled] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
 
-  const handleSaveNotifications = () => {
-    toast.success("Notification preferences saved");
+  // Fetch user preferences on mount
+  useEffect(() => {
+    const fetchPreferences = async () => {
+      try {
+        setIsLoadingPreferences(true);
+        const preferences = await userStatsApi.getUserPreferences();
+
+        // Update notification settings
+        setEmailNotifications(preferences.notifications.email_notifications);
+        setPushNotifications(preferences.notifications.push_notifications);
+        setThreatAlerts(preferences.notifications.threat_alerts);
+        setWeeklyReports(preferences.notifications.weekly_reports);
+
+        // Update appearance settings
+        setTheme(preferences.theme);
+        setLanguage(preferences.language);
+        setTimezone(preferences.timezone);
+      } catch (error) {
+        console.error("Error fetching preferences:", error);
+        toast.error("Failed to load settings. Using defaults.");
+      } finally {
+        setIsLoadingPreferences(false);
+      }
+    };
+
+    if (user) {
+      fetchPreferences();
+    }
+  }, [user]);
+
+  const handleSaveNotifications = async () => {
+    try {
+      setIsSavingNotifications(true);
+      await userStatsApi.updateUserPreferences({
+        notifications: {
+          email_notifications: emailNotifications,
+          push_notifications: pushNotifications,
+          threat_alerts: threatAlerts,
+          weekly_reports: weeklyReports,
+        },
+      });
+      toast.success("Notification preferences saved");
+    } catch (error) {
+      console.error("Error saving notifications:", error);
+      toast.error("Failed to save notification preferences");
+    } finally {
+      setIsSavingNotifications(false);
+    }
   };
 
-  const handleSaveAppearance = () => {
-    toast.success("Appearance settings saved");
+  const handleSaveAppearance = async () => {
+    try {
+      setIsSavingAppearance(true);
+      await userStatsApi.updateUserPreferences({
+        theme,
+        language,
+        timezone,
+      });
+      toast.success("Appearance settings saved");
+    } catch (error) {
+      console.error("Error saving appearance:", error);
+      toast.error("Failed to save appearance settings");
+    } finally {
+      setIsSavingAppearance(false);
+    }
   };
 
-  const handleSaveSecurity = () => {
-    toast.success("Security settings updated");
+  const handleSaveSecurity = async () => {
+    try {
+      setIsSavingSecurity(true);
+      // Add API call for security settings when backend is ready
+      toast.success("Security settings updated");
+    } catch (error) {
+      console.error("Error saving security:", error);
+      toast.error("Failed to save security settings");
+    } finally {
+      setIsSavingSecurity(false);
+    }
   };
 
   const handleEnableTwoFactor = () => {
@@ -53,13 +129,23 @@ const SettingsPage: React.FC = () => {
   };
 
   const handleDeleteAccount = () => {
-    // Implement account deletion logic
     toast.error("Account deletion is not available in demo mode");
     setShowDeleteDialog(false);
   };
 
   if (!user) {
     return null;
+  }
+
+  if (isLoadingPreferences) {
+    return (
+      <div className="min-h-screen bg-gray-950 flex items-center justify-center">
+        <div className="text-center">
+          <RefreshCw className="w-12 h-12 text-red-600 animate-spin mx-auto mb-4" />
+          <p className="text-gray-400">Loading settings...</p>
+        </div>
+      </div>
+    );
   }
 
   return (
@@ -114,6 +200,7 @@ const SettingsPage: React.FC = () => {
                   className={`relative w-12 h-6 rounded-full transition-colors ${
                     emailNotifications ? "bg-green-600" : "bg-gray-700"
                   }`}
+                  aria-label="Toggle email notifications"
                 >
                   <span
                     className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full transition-transform ${
@@ -137,6 +224,7 @@ const SettingsPage: React.FC = () => {
                   className={`relative w-12 h-6 rounded-full transition-colors ${
                     pushNotifications ? "bg-green-600" : "bg-gray-700"
                   }`}
+                  aria-label="Toggle push notifications"
                 >
                   <span
                     className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full transition-transform ${
@@ -160,6 +248,7 @@ const SettingsPage: React.FC = () => {
                   className={`relative w-12 h-6 rounded-full transition-colors ${
                     threatAlerts ? "bg-red-600" : "bg-gray-700"
                   }`}
+                  aria-label="Toggle threat alerts"
                 >
                   <span
                     className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full transition-transform ${
@@ -183,6 +272,7 @@ const SettingsPage: React.FC = () => {
                   className={`relative w-12 h-6 rounded-full transition-colors ${
                     weeklyReports ? "bg-green-600" : "bg-gray-700"
                   }`}
+                  aria-label="Toggle weekly reports"
                 >
                   <span
                     className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full transition-transform ${
@@ -196,9 +286,17 @@ const SettingsPage: React.FC = () => {
             <div className="mt-6 pt-6 border-t border-gray-800">
               <button
                 onClick={handleSaveNotifications}
-                className="w-full px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-colors"
+                disabled={isSavingNotifications}
+                className="w-full px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
               >
-                Save Notification Preferences
+                {isSavingNotifications ? (
+                  <>
+                    <RefreshCw className="w-4 h-4 animate-spin" />
+                    Saving...
+                  </>
+                ) : (
+                  "Save Notification Preferences"
+                )}
               </button>
             </div>
           </div>
@@ -272,9 +370,10 @@ const SettingsPage: React.FC = () => {
                   className="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-purple-600"
                 >
                   <option value="UTC">UTC</option>
-                  <option value="EST">EST (Eastern)</option>
-                  <option value="PST">PST (Pacific)</option>
-                  <option value="GMT">GMT (London)</option>
+                  <option value="America/New_York">EST (Eastern)</option>
+                  <option value="America/Los_Angeles">PST (Pacific)</option>
+                  <option value="Europe/London">GMT (London)</option>
+                  <option value="Africa/Lagos">WAT (Lagos)</option>
                 </select>
               </div>
             </div>
@@ -282,9 +381,17 @@ const SettingsPage: React.FC = () => {
             <div className="mt-6 pt-6 border-t border-gray-800">
               <button
                 onClick={handleSaveAppearance}
-                className="w-full px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white font-medium rounded-lg transition-colors"
+                disabled={isSavingAppearance}
+                className="w-full px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white font-medium rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
               >
-                Save Appearance Settings
+                {isSavingAppearance ? (
+                  <>
+                    <RefreshCw className="w-4 h-4 animate-spin" />
+                    Saving...
+                  </>
+                ) : (
+                  "Save Appearance Settings"
+                )}
               </button>
             </div>
           </div>
@@ -316,6 +423,7 @@ const SettingsPage: React.FC = () => {
                     className={`relative w-12 h-6 rounded-full transition-colors ${
                       twoFactorEnabled ? "bg-green-600" : "bg-gray-700"
                     }`}
+                    aria-label="Toggle two-factor authentication"
                   >
                     <span
                       className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full transition-transform ${
@@ -363,9 +471,17 @@ const SettingsPage: React.FC = () => {
             <div className="mt-6 pt-6 border-t border-gray-800">
               <button
                 onClick={handleSaveSecurity}
-                className="w-full px-4 py-2 bg-green-600 hover:bg-green-700 text-white font-medium rounded-lg transition-colors"
+                disabled={isSavingSecurity}
+                className="w-full px-4 py-2 bg-green-600 hover:bg-green-700 text-white font-medium rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
               >
-                Save Security Settings
+                {isSavingSecurity ? (
+                  <>
+                    <RefreshCw className="w-4 h-4 animate-spin" />
+                    Saving...
+                  </>
+                ) : (
+                  "Save Security Settings"
+                )}
               </button>
             </div>
           </div>
