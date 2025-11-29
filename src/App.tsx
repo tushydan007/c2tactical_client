@@ -5,10 +5,10 @@ import { store } from "./store";
 import LoginPage from "./pages/Login";
 import RegisterPage from "./pages/Register";
 import DashboardPage from "./components/Dashboard";
-// import ProfileSettings from "./pages/ProfileSettings";
-import ProtectedRoute from "./components/ProtectedRoute";
 import ProfilePage from "./pages/ProfilePage";
 import SettingsPage from "./pages/SettingsPage";
+import AnalysisPage from "./pages/AnalysisPage";
+import ProtectedRoute from "./components/ProtectedRoute";
 
 function App() {
   return (
@@ -23,6 +23,15 @@ function App() {
             element={
               <ProtectedRoute>
                 <DashboardPage />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/analysis"
+            element={
+              <ProtectedRoute>
+                <AnalysisPage />
               </ProtectedRoute>
             }
           />
